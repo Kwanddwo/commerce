@@ -1,0 +1,90 @@
+{% extends "auctions/layout.html" %}
+
+{% block title %}{{ listing.name }}{% endblock %}
+
+{% block body %}
+    <h2>Listing: {{ listing.name }}</h2>
+    {% if listing.imageurl != "" %}
+    <div class="container text-center m-5"><img class="img-fluid" src="{{ listing.imageurl }}"></div>
+    {% endif %}
+    <h5>{{ listing.description }}</h5>
+    <h3>${{ listing.current_price }}</h3>
+    {% if not listing.is_closed %}
+        <h6>{{ bid_count }} bid(s) so far, current bidder is {{ listing.current_bidder.username }}</h6>
+        {% if user.is_authenticated %}
+            {% if user != listing.seller %}
+                <form action="{% url 'bid' listing.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="number" required placeholder="Bid Amount" name="price" min="{{ listing.current_price }}">
+                    <button type="submit" class="btn btn-primary">Bid</button>
+                </form>
+                <form action="{% url 'watchlist' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Add to Watchlist</button>
+                    <input type="hidden" name="listing_id" value="{{ listing.pk }}">
+                    <input type="hidden" name="choice" value="add">
+                </form>
+            {% else %}
+                <form action="{% url 'close' listing.id %}" method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-primary" type="submit">Close Auction</button>
+                </form>
+            {% endif %}
+        {% else %}
+            <h6><a href="{% url 'login' %}">Login</a> to bid on this auction</h6>
+        {% endif %}
+    {% else %}
+        <h6>This auction is closed</h6>
+        {% if user.is_authenticated and user == listing.winner %}
+                <h5>Congratulations! You have won this auction!</h5>
+        {% endif %}
+    {% endif %}
+
+    <h3>Details:</h3>
+    <ul>
+        <li>Listed by: <a href="{% url 'user_view' seller %}">{{ seller }}</a></li>
+        <li>Categories :
+            <ul>
+                {% for category in listing.category.all %}
+                    <li>{{ category.name }}</li>
+                {% empty %}
+                    <li>No Category Listed</li>
+                {% endfor %}
+            </ul>
+        </li>
+    </ul>
+    <hr>
+    <h2>Make a comment</h2>
+    {% if user.is_authenticated %}
+        <form action="{% url 'comment' listing.id %}" method="post">
+            {% csrf_token %}
+            <textarea required class="form-control mb-3" name="text" placeholder="Comment here"></textarea>
+            <input type="hidden" name="commenter" value="{{ user.id }}">
+            <button class="btn btn-primary" type="submit">Comment</button>
+            <input type="hidden" name="delete">
+        </form>
+    {% else %}
+        <h6><a href="{% url 'login' %}">Login</a> to comment</h6>
+    {% endif %}
+    <hr>
+    <h2>Comments</h2>
+    {% for comment in listing.comments.all %}
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <a href="{% url 'user_view' comment.commenter %}">{{ comment.commenter }}</a>
+                </h5>
+                <p class="card-text">{{ comment.text }}</p>
+                <p class="card-text text-muted">{{ comment.date }}</p>
+                {% if user == comment.commenter %}
+                    <form action="{% url 'comment' listing.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger" name="delete" value="{{ comment.id }}">Delete Comment</button>
+                    </form>
+                {% endif %}
+            </div> 
+        </div>
+    {% empty %}
+        <h3>No comments on this listing</h3>
+    {% endfor %}
+{% endblock %}
